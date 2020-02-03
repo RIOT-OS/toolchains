@@ -1,0 +1,22 @@
+diff --git a/newlib/configure.host b/newlib/configure.host
+index a84c0c80a..6db688bef 100644
+--- a/newlib/configure.host
++++ b/newlib/configure.host
+@@ -919,8 +919,8 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+ 	syscall_dir=syscalls
+ 	;;
+   *)
+-	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES"
+-	syscall_dir=
++	#newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES"
++	#syscall_dir=
+ 	;;
+ esac
+ 
+@@ -1002,3 +1002,6 @@ case "${host_cpu}" in
+ 	fi
+ 	;;
+ esac
++
++syscall_dir=syscalls
++newlib_cflags="${newlib_cflags} -DREENTRANT_SYSCALLS_PROVIDED"
