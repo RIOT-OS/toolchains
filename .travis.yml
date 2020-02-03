@@ -1,0 +1,41 @@
+language: shell
+os: linux
+dist: bionic
+
+env:
+  jobs:
+  - TARGET=msp430-elf
+  global:
+  - VERSION=9.2.0
+
+stages:
+  - name: deploy
+    # require the branch name to be master (note for PRs this is the base branch name)
+    if: branch = master
+
+before_install:
+  - sudo apt-get -y install build-essential libgmp-dev libmpfr-dev libmpc-dev libz-dev wget texinfo
+
+script:
+  - mkdir out
+  - ./build.sh ${TARGET} build_all > /dev/null
+  - ls
+  - pwd
+  - ls ${HOME}/opt
+  - tar -C${HOME}/opt -czf $(pwd)/out/riot-${TARGET}-${VERSION}-${TRAVIS_BUILD_NUMBER}.tgz riot-toolchain/${TARGET}
+
+before_deploy:
+      # Set up git user name and tag this commit
+      - git config --local user.name "ci@riot-labs.org"
+      - git config --local user.email "ci@riot-labs.org"
+      - export TRAVIS_TAG=${TRAVIS_TAG:-${VERSION}-${TRAVIS_BUILD_NUMBER}-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
+      - git tag $TRAVIS_TAG
+
+deploy:
+  provider: releases
+  token:
+    secure: "eVFVJm07cC/+5PzOzzH1mzm7NqcZ2SxT0Av/gdy0VpCxT3X7OV+JSoUefgQihW1bIxhVqg1VHyYD5RenMb52omV4fW6xfQY4/kejNXuJhXBe4duzTAvbB1nDkHw6zfhULU4o3IK0yM1N+s+TxrJlNJw0wVCqJSsmW4I47mk5LMF4YWpr6N1/kVFlhmgFL1i71n8EZGpKO8dQh7q8Ayeuckz9nZel/u/n7Wgm11PCJaidD1K+MZBhioe4jXVw+IboMqJDxUZOsEPRMkxpdUpMtAvAuLKB0oczSS9JlFTeASJz4rnSZJblyRMbU8jSKOBWFtKmYI5T1pbYeauTK/EVrXsg7Ufa76NkZ1Z4wZJD68rdI1PWw6pesNvmKq7oR2f6OyVkqEk8HmOpmbHuyWImPE7yBFD3MQ+Lg5pCIWi0phzZoWr5UDJ8X4J9h/h+m7VwnHF8cxu7qZKsza20GqSkw70OXw9o/rYPBz+srKQBqRM4YGow3KubHPAMeyMBPdF5HTAbUKjwZpOAlJ2K6R1nKsRsrYK2uz5UCxwsrzTcpaNoDK//qiRf9oFfXb01lJnHmDZz6L9aQt4dnW1Yi5wqDgd+DEPiilgbX2AghY7P7oUQRWDJpEShZwV2ppZ5WWeeXoVMJx+AyXqteZwBlfJ4QWAescs/ok2iYrmjLylL9X8="
+  skip_cleanup: true
+  draft: true
+  file_glob: true
+  file: out/*
