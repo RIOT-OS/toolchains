@@ -41,7 +41,7 @@ RT_INSTALL_DIR=${RT_INSTALL_PREFIX}/${TARGET}/${GCC_VER}
 export MAKEFLAGS
 
 DOWNLOADER=wget
-DOWNLOADER_OPTS="-nv -c"
+DOWNLOADER_OPTS="--progress=dot:giga -c"
 
 SPACE_NEEDED=2641052
 FREETMP=`df ${TMP_DIR} | awk '{ if (NR == 2) print $4}'`
