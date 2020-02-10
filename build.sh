@@ -10,14 +10,10 @@ shift
 
 PATCHDIR=$(pwd)/patches
 
-# base directory to install compiled binaries into
-: ${RT_INSTALL_PREFIX:=${HOME}/opt/riot-toolchain}
-
-# directory to download source files and store intermediates
-: ${RT_TMP_DIR:=~/tmp}
-: ${RT_BUILDDIR:=${RT_TMP_DIR}/riot-toolchain-build/${TARGET}}
-
+# mirror for binutils, gcc and gdb
 : ${GNU_MIRROR:=http://ftp.gnu.org/gnu}
+
+#
 GCC_VER=9.2.0
 GCC_SHA256=ea6ef08f121239da5695f76c9b33637a118dcf63e24164422231917fa61fb206
 GCC_MIRROR=${GNU_MIRROR}/gcc/gcc-${GCC_VER}
@@ -30,13 +26,23 @@ NEWLIB_VER=3.3.0
 NEWLIB_SHA256=58dd9e3eaedf519360d92d84205c3deef0b3fc286685d1c562e245914ef72c66
 NEWLIB_MIRROR=https://sourceware.org/pub/newlib
 
-GDB_VER=8.3.1
-GDB_SHA256=1e55b4d7cdca7b34be12f4ceae651623aa73b2fd640152313f9f66a7149757c4
+GDB_VER=9.1
+GDB_SHA256=699e0ec832fdd2f21c8266171ea5bf44024bd05164fdf064e4d10cc4cf0d1737
 GDB_MIRROR=${GNU_MIRROR}/gdb
 
-RT_INSTALL_DIR=${RT_INSTALL_PREFIX}/${TARGET}/${GCC_VER}
+# package version number. travis sets ${GCC_VER}-${TRAVIS_BUILD_NUMBER}.
+: ${PKG_VER:=${GCC_VER}}
 
-#uncomment to support multi-threaded compile
+# base directory to install compiled binaries into
+: ${RT_INSTALL_PREFIX:=${HOME}/opt/riot-toolchain/${PKG_VER}}
+
+# directory to download source files and store intermediates
+: ${RT_TMP_DIR:=~/tmp}
+: ${RT_BUILDDIR:=${RT_TMP_DIR}/riot-toolchain-build/${TARGET}}
+
+RT_INSTALL_DIR=${RT_INSTALL_PREFIX}/${TARGET}
+
+# uncomment to support multi-threaded compile
 : ${MAKEFLAGS:=-j4}
 export MAKEFLAGS
 
@@ -44,7 +50,7 @@ DOWNLOADER=wget
 DOWNLOADER_OPTS="--progress=dot:giga -c"
 
 SPACE_NEEDED=2641052
-FREETMP=`df ${TMP_DIR} | awk '{ if (NR == 2) print $4}'`
+FREETMP=`df ${RT_TMP_DIR} | awk '{ if (NR == 2) print $4}'`
 
 FILES=.
 
@@ -71,9 +77,10 @@ esac
 
 build_binutils() {
     echo "Building binutils..."
-    if [ ! -e .binutils_extracted ] ; then
+    if [ ! -e binutils-${BINUTILS_VER}/.binutils_extracted ] ; then
+        rm -rf binutils-${BINUTILS_VER}
         tar -xaf ${FILES}/binutils-${BINUTILS_VER}.tar.xz
-        touch .binutils_extracted
+        touch binutils-${BINUTILS_VER}/.binutils_extracted
     fi
     rm -rf binutils-build && mkdir -p binutils-build && cd binutils-build
     ../binutils-${BINUTILS_VER}/configure \
@@ -91,10 +98,11 @@ build_binutils() {
 
 build_gcc() {
     echo "Building gcc..."
-    if [ ! -e .gcc_extracted ] ; then
+    if [ ! -e gcc-${GCC_VER}/.gcc_extracted ] ; then
+        rm -Rf gcc-${GCC_VER}
         tar -xaf ${FILES}/gcc-${GCC_VER}.tar.xz
         ( cd gcc-${GCC_VER} && patch -p1 < ${PATCHDIR}/gcc-use-init_array-if-needed.patch )
-        touch .gcc_extracted
+        touch gcc-${GCC_VER}/.gcc_extracted
     fi
     rm -rf gcc-build && mkdir -p gcc-build && cd gcc-build
 
@@ -113,7 +121,6 @@ build_gcc() {
     --disable-libstdcxx-pch \
     --disable-nls \
     --disable-shared \
-    --disable-threads \
     --disable-tls \
     --enable-addons \
     --enable-gnu-indirect-function \
@@ -134,11 +141,12 @@ build_gcc() {
 }
 
 extract_newlib() {
-    if [ ! -e .newlib_extracted ] ; then
+    if [ ! -e newlib-${NEWLIB_VER}/.newlib_extracted ] ; then
         echo -n "Extracting newlib..."
+        rm -Rf newlib-${NEWLIB_VER}
         tar -xaf ${FILES}/newlib-${NEWLIB_VER}.tar.gz
         ( cd newlib-${NEWLIB_VER} && patch -p1 < ${PATCHDIR}/newlib-syscalls.patch )
-        touch .newlib_extracted
+        touch newlib-${NEWLIB_VER}/.newlib_extracted
         echo " Done."
     fi
 }
@@ -152,9 +160,10 @@ build_newlib() {
 
     rm -rf newlib-build && mkdir -p newlib-build && cd newlib-build
 
-    AR_FOR_TARGET="${RT_INSTALL_DIR}/bin/${TARGET}-gcc-ar" \
-    NM_FOR_TARGET="${RT_INSTALL_DIR}/bin/${TARGET}-gcc-nm" \
-    RANLIB_FOR_TARGET="${RT_INSTALL_DIR}/bin/${TARGET}-gcc-ranlib" \
+    export AR_FOR_TARGET="${RT_INSTALL_DIR}/bin/${TARGET}-gcc-ar"
+    export NM_FOR_TARGET="${RT_INSTALL_DIR}/bin/${TARGET}-gcc-nm"
+    export RANLIB_FOR_TARGET="${RT_INSTALL_DIR}/bin/${TARGET}-gcc-ranlib"
+    export CFLAGS_FOR_TARGET="-gdwarf-2"
       ../newlib-${NEWLIB_VER}/configure \
         --target=${TARGET} \
         --prefix=${RT_INSTALL_DIR} \
@@ -164,6 +173,7 @@ build_newlib() {
         --disable-newlib-unbuf-stream-opt \
         --disable-newlib-wide-orient \
         --disable-nls \
+        --disable-threads \
         --enable-interwork \
         --enable-lite-exit \
         --enable-lto \
@@ -174,7 +184,7 @@ build_newlib() {
         --enable-newlib-reent-small \
         --enable-target-optspace
 
-    make TARGET_CFLAGS="-gdwarf-2" all
+    make all
     make install
 
     cd ${RT_BUILDDIR}
@@ -224,10 +234,10 @@ download_file() {
 }
 
 check_space() {
-    echo "Checking disk space in ${TMP_DIR}"
+    echo "Checking disk space in ${RT_TMP_DIR}"
     if [ $FREETMP -lt $SPACE_NEEDED ]
     then
-        echo "Not enough available space in ${TMP_DIR}. Minimum ${SPACE_NEEDED} free bytes required."
+        echo "Not enough available space in ${RT_TMP_DIR}. Minimum ${SPACE_NEEDED} free bytes required."
         exit 1
     fi
 }

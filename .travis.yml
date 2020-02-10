@@ -7,6 +7,7 @@ env:
   - TARGET=msp430-elf
   global:
   - VERSION=9.2.0
+  - PKG_VER=${VERSION}-${TRAVIS_BUILD_NUMBER}
 
 stages:
   - name: deploy
@@ -22,13 +23,13 @@ script:
   - ls
   - pwd
   - ls ${HOME}/opt
-  - tar -C${HOME}/opt -czf $(pwd)/out/riot-${TARGET}-${VERSION}-${TRAVIS_BUILD_NUMBER}.tgz riot-toolchain/${TARGET}
+  - tar -C${HOME}/opt -czf $(pwd)/out/riot-${TARGET}-${PKG_VER}.tgz riot-toolchain/${TARGET}
 
 before_deploy:
       # Set up git user name and tag this commit
       - git config --local user.name "ci@riot-labs.org"
       - git config --local user.email "ci@riot-labs.org"
-      - export TRAVIS_TAG=${TRAVIS_TAG:-${VERSION}-${TRAVIS_BUILD_NUMBER}-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
+      - export TRAVIS_TAG=${TRAVIS_TAG:-${PKG_VER}-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
       - git tag $TRAVIS_TAG
 
 deploy:
