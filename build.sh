@@ -34,13 +34,13 @@ GDB_MIRROR=${GNU_MIRROR}/gdb
 : ${PKG_VER:=${GCC_VER}}
 
 # base directory to install compiled binaries into
-: ${RT_INSTALL_PREFIX:=${HOME}/opt/riot-toolchain/${PKG_VER}}
+: ${RT_INSTALL_PREFIX:=${HOME}/opt/riot-toolchain}
 
 # directory to download source files and store intermediates
 : ${RT_TMP_DIR:=~/tmp}
 : ${RT_BUILDDIR:=${RT_TMP_DIR}/riot-toolchain-build/${TARGET}}
 
-RT_INSTALL_DIR=${RT_INSTALL_PREFIX}/${TARGET}
+RT_INSTALL_DIR=${RT_INSTALL_PREFIX}/${TARGET}/${PKG_VER}
 
 # uncomment to support multi-threaded compile
 : ${MAKEFLAGS:=-j4}
