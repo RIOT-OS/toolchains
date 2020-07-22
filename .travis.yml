@@ -6,7 +6,7 @@ env:
   jobs:
   - TARGET=msp430-elf
   global:
-  - VERSION=9.2.0
+  - VERSION=10.1.0
   - PKG_VER=${VERSION}-${TRAVIS_BUILD_NUMBER}
 
 stages:
