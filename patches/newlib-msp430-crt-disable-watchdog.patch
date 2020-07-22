@@ -1,0 +1,15 @@
+diff --git a/libgloss/msp430/crt0.S b/libgloss/msp430/crt0.S
+index 88876cd..9815ce0 100644
+--- a/libgloss/msp430/crt0.S
++++ b/libgloss/msp430/crt0.S
+@@ -53,7 +53,10 @@ __msp430_resetvec_hook:
+ START_CRT_FUNC 0000 start
+ 	.refsym	__msp430_resetvec_hook
+ 	.refsym	__crt0_call_main
++	.refsym	WDTCTL
+ 	mov_	#__stack, R1
++	;; Disable watchdog timer.
++	MOV	#0x5a80, WDTCTL
+ 
+ END_CRT_FUNC	start
+ #endif

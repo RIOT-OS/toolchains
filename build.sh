@@ -1,5 +1,15 @@
 #!/bin/bash
 
+usage() {
+    echo "usage: ${0} <arm|msp430> build_[binutils|gcc|newlib|gdb|all]"
+    echo "example: ./build build_all"
+    echo ""
+    echo "Builds a GNU GCC toolchain for RIOT."
+    echo "Will build in ~/tmp/riot-toolchain-build, and install to ~/opt/riot-toolchain."
+    echo "Edit to change these directories."
+    echo "Run like \"MAKEFLAGS=-j4 ${0} build_all\" to speed up on multicore systems."
+}
+
 if [ -z "${1}" ]; then
     usage
     exit 1
@@ -14,8 +24,8 @@ PATCHDIR=$(pwd)/patches
 : ${GNU_MIRROR:=http://ftp.gnu.org/gnu}
 
 #
-GCC_VER=9.2.0
-GCC_SHA256=ea6ef08f121239da5695f76c9b33637a118dcf63e24164422231917fa61fb206
+GCC_VER=10.1.0
+GCC_SHA256=b6898a23844b656f1b68691c5c012036c2e694ac4b53a8918d4712ad876e7ea2
 GCC_MIRROR=${GNU_MIRROR}/gcc/gcc-${GCC_VER}
 
 BINUTILS_VER=2.34
@@ -26,8 +36,8 @@ NEWLIB_VER=3.3.0
 NEWLIB_SHA256=58dd9e3eaedf519360d92d84205c3deef0b3fc286685d1c562e245914ef72c66
 NEWLIB_MIRROR=https://sourceware.org/pub/newlib
 
-GDB_VER=9.1
-GDB_SHA256=699e0ec832fdd2f21c8266171ea5bf44024bd05164fdf064e4d10cc4cf0d1737
+GDB_VER=9.2
+GDB_SHA256=360cd7ae79b776988e89d8f9a01c985d0b1fa21c767a4295e5f88cb49175c555
 GDB_MIRROR=${GNU_MIRROR}/gdb
 
 # package version number. travis sets ${GCC_VER}-${TRAVIS_BUILD_NUMBER}.
@@ -101,7 +111,6 @@ build_gcc() {
     if [ ! -e gcc-${GCC_VER}/.gcc_extracted ] ; then
         rm -Rf gcc-${GCC_VER}
         tar -xaf ${FILES}/gcc-${GCC_VER}.tar.xz
-        ( cd gcc-${GCC_VER} && patch -p1 < ${PATCHDIR}/gcc-use-init_array-if-needed.patch )
         touch gcc-${GCC_VER}/.gcc_extracted
     fi
     rm -rf gcc-build && mkdir -p gcc-build && cd gcc-build
@@ -146,6 +155,7 @@ extract_newlib() {
         rm -Rf newlib-${NEWLIB_VER}
         tar -xaf ${FILES}/newlib-${NEWLIB_VER}.tar.gz
         ( cd newlib-${NEWLIB_VER} && patch -p1 < ${PATCHDIR}/newlib-syscalls.patch )
+        ( cd newlib-${NEWLIB_VER} && patch -p1 < ${PATCHDIR}/newlib-msp430-crt-disable-watchdog.patch )
         touch newlib-${NEWLIB_VER}/.newlib_extracted
         echo " Done."
     fi
@@ -253,15 +263,6 @@ build_all() {
     build_gdb
 
     echo "Build complete."
-}
-
-usage() {
-    echo "usage: ${0} <arm|msp430> build_[binutils|gcc|newlib|gdb|all]"
-    echo "example: ./build build_all"
-    echo ""
-    echo "Builds a GNU GCC toolchain for RIOT. installs to ${RT_INSTALL_DIR}, uses ${RT_BUILDDIR} as temp."
-    echo "Edit to change these directories."
-    echo "Run like \"MAKEFLAGS=-j4${0} build_all\" to speed up on multicore systems."
 }
 
 # Fail on any error
